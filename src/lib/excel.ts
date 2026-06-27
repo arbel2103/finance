@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { Expense, MonthKey } from './types'
-import { excelSerialToISO } from './date'
+import { excelSerialToISO, monthKeyFromISO } from './date'
 import { mapCategory } from './categories'
 
 // זיהוי שורת ביט / "שונות"
@@ -59,6 +59,25 @@ export interface ParseResult {
   expenses: Expense[]
   total: number
   bitCount: number
+  monthKey: MonthKey // החודש שזוהה אוטומטית מתאריכי העסקאות
+}
+
+// קביעת חודש היעד מתוך תאריכי העסקאות — החודש השכיח ביותר (ובשוויון, המאוחר)
+function detectMonth(isoDates: string[]): MonthKey {
+  const counts = new Map<MonthKey, number>()
+  for (const iso of isoDates) {
+    const mk = monthKeyFromISO(iso)
+    counts.set(mk, (counts.get(mk) || 0) + 1)
+  }
+  let best: MonthKey = isoDates.length ? monthKeyFromISO(isoDates[0]) : ''
+  let bestCount = -1
+  for (const [mk, c] of counts) {
+    if (c > bestCount || (c === bestCount && mk > best)) {
+      best = mk
+      bestCount = c
+    }
+  }
+  return best
 }
 
 let _seq = 0
@@ -69,13 +88,12 @@ function uid(prefix = 'e'): string {
 
 /**
  * מפרסר קובץ אקסל של דוח אשראי (כאל/ויזה) לרשימת הוצאות.
+ * החודש נקבע אוטומטית מתוך תאריכי העסקאות שבקובץ.
  * @param buffer תוכן הקובץ
- * @param mk חודש היעד אליו משויכות ההוצאות
  * @param userMap מיפוי ענף→קטגוריה (דריסות המשתמש)
  */
 export function parseExpensesFromBuffer(
   buffer: ArrayBuffer,
-  mk: MonthKey,
   userMap: Record<string, string>,
 ): ParseResult {
   const wb = XLSX.read(buffer, { type: 'array' })
@@ -139,7 +157,7 @@ export function parseExpensesFromBuffer(
 
     const exp: Expense = {
       id: uid(),
-      monthKey: mk,
+      monthKey: '', // ייקבע אחרי זיהוי החודש מהתאריכים
       date: iso,
       merchant,
       rawCategory,
@@ -154,5 +172,9 @@ export function parseExpensesFromBuffer(
     total += (charge ?? txn ?? 0)
   }
 
-  return { expenses, total, bitCount }
+  // זיהוי החודש מהתאריכים ושיוך כל ההוצאות לאותו חודש
+  const monthKey = detectMonth(expenses.map((e) => e.date))
+  for (const e of expenses) e.monthKey = monthKey
+
+  return { expenses, total, bitCount, monthKey }
 }

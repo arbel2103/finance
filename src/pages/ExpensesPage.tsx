@@ -46,6 +46,7 @@ export function ExpensesPage() {
   // ===== ייבוא אקסל =====
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<Expense[]>([])
+  const [pendingMonth, setPendingMonth] = useState<MonthKey>(selectedMonth)
   const [bitOpen, setBitOpen] = useState(false)
 
   const handleFile = async (file: File) => {
@@ -53,23 +54,27 @@ export function ExpensesPage() {
       const buf = await file.arrayBuffer()
       // טעינה דינמית של מנוע האקסל (xlsx) רק בעת הצורך — מקטין את ה-bundle הראשוני
       const { parseExpensesFromBuffer } = await import('../lib/excel')
-      const res = parseExpensesFromBuffer(buf, selectedMonth, categoryMap)
-      if (!res.expenses.length) {
-        alert('לא נמצאו עסקאות בקובץ.')
+      const res = parseExpensesFromBuffer(buf, categoryMap)
+      if (!res.expenses.length || !res.monthKey) {
+        alert('לא נמצאו עסקאות עם תאריך תקין בקובץ.')
         return
       }
-      if (month.imported) {
+      // החודש נקבע אוטומטית מתוך תאריכי העסקאות שבקובץ
+      const target = res.monthKey
+      if (months[target]?.imported) {
         const ok = window.confirm(
-          `כבר נטענו נתונים לחודש ${monthLabel(selectedMonth)}. להחליף אותם בקובץ החדש?`,
+          `כבר נטענו נתונים לחודש ${monthLabel(target)}. להחליף אותם בקובץ החדש?`,
         )
         if (!ok) return
       }
+      setSelectedMonth(target) // מעבר אוטומטי לחודש שזוהה
+      setPendingMonth(target)
       setPending(res.expenses)
       const bits = res.expenses.filter((e) => e.isBit)
       if (bits.length) {
         setBitOpen(true)
       } else {
-        commitImport(selectedMonth, res.expenses)
+        commitImport(target, res.expenses)
       }
     } catch (err) {
       alert((err as Error).message || 'שגיאה בקריאת הקובץ')
@@ -82,7 +87,7 @@ export function ExpensesPage() {
     )
 
   const confirmBit = () => {
-    commitImport(selectedMonth, pending)
+    commitImport(pendingMonth, pending)
     setBitOpen(false)
     setPending([])
   }
