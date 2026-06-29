@@ -9,6 +9,7 @@ import {
 } from '../store/selectors'
 import type { Expense, MonthKey } from '../lib/types'
 import { addMonths, monthLabel, monthLabelShort } from '../lib/date'
+import { formatCard } from '../lib/format'
 import { CATEGORY_NAMES } from '../lib/categories'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -47,6 +48,7 @@ export function ExpensesPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<Expense[]>([])
   const [pendingMonth, setPendingMonth] = useState<MonthKey>(selectedMonth)
+  const [pendingCard, setPendingCard] = useState<string>('')
   const [bitOpen, setBitOpen] = useState(false)
 
   const handleFile = async (file: File) => {
@@ -54,27 +56,31 @@ export function ExpensesPage() {
       const buf = await file.arrayBuffer()
       // טעינה דינמית של מנוע האקסל (xlsx) רק בעת הצורך — מקטין את ה-bundle הראשוני
       const { parseExpensesFromBuffer } = await import('../lib/excel')
-      const res = parseExpensesFromBuffer(buf, categoryMap)
+      const res = parseExpensesFromBuffer(buf, categoryMap, file.name)
       if (!res.expenses.length || !res.monthKey) {
         alert('לא נמצאו עסקאות עם תאריך תקין בקובץ.')
         return
       }
-      // החודש נקבע אוטומטית מתוך תאריכי העסקאות שבקובץ
+      // החודש והכרטיס נקבעים אוטומטית מתוך הקובץ
       const target = res.monthKey
-      if (months[target]?.imported) {
+      const alreadyHasCard = expenses.some(
+        (e) => e.monthKey === target && e.card === res.card,
+      )
+      if (alreadyHasCard) {
         const ok = window.confirm(
-          `כבר נטענו נתונים לחודש ${monthLabel(target)}. להחליף אותם בקובץ החדש?`,
+          `כבר נטען כרטיס ${formatCard(res.card)} לחודש ${monthLabel(target)}. להחליף את ההוצאות שלו בקובץ החדש?`,
         )
         if (!ok) return
       }
       setSelectedMonth(target) // מעבר אוטומטי לחודש שזוהה
       setPendingMonth(target)
+      setPendingCard(res.card)
       setPending(res.expenses)
       const bits = res.expenses.filter((e) => e.isBit)
       if (bits.length) {
         setBitOpen(true)
       } else {
-        commitImport(target, res.expenses)
+        commitImport(target, res.card, res.expenses)
       }
     } catch (err) {
       alert((err as Error).message || 'שגיאה בקריאת הקובץ')
@@ -87,7 +93,7 @@ export function ExpensesPage() {
     )
 
   const confirmBit = () => {
-    commitImport(pendingMonth, pending)
+    commitImport(pendingMonth, pendingCard, pending)
     setBitOpen(false)
     setPending([])
   }

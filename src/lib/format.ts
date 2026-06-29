@@ -28,3 +28,8 @@ export function formatPercent(value: number): string {
   if (!isFinite(value)) return '—'
   return `${Math.round(value)}%`
 }
+
+// תווית כרטיס: 4 ספרות → "••••8806", אחרת הערך כמו שהוא
+export function formatCard(card: string): string {
+  return /^\d{3,4}$/.test(card) ? `••••${card}` : card
+}

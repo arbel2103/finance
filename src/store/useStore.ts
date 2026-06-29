@@ -15,6 +15,9 @@ function uid(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+// מזהה כרטיס לנתונים שיובאו לפני תמיכת ריבוי-כרטיסים
+const LEGACY_CARD = 'כרטיס'
+
 export function emptyMonth(): MonthData {
   return { imported: false, salary: 0, extraIncome: [], bankTransfers: [] }
 }
@@ -32,7 +35,7 @@ interface State {
   setSelectedMonth: (mk: MonthKey) => void
 
   // ייבוא והוצאות
-  commitImport: (mk: MonthKey, expenses: Expense[]) => void
+  commitImport: (mk: MonthKey, card: string, expenses: Expense[]) => void
   clearMonthExpenses: (mk: MonthKey) => void
   updateExpenseCategory: (id: string, category: string) => void
   setExpenseRefund: (id: string, refund: number) => void
@@ -72,10 +75,17 @@ export const useStore = create<State>()(
 
       setSelectedMonth: (mk) => set({ selectedMonth: mk }),
 
-      commitImport: (mk, expenses) =>
+      commitImport: (mk, card, expenses) =>
         set((s) => {
-          // החלפת הוצאות החודש בייבוא חדש (מונע כפילות)
-          const others = s.expenses.filter((e) => e.monthKey !== mk)
+          // החלפת הוצאות אותו חודש + אותו כרטיס בלבד (מונע כפילות,
+          // אך שומר הוצאות של כרטיסים אחרים באותו חודש).
+          // הוצאות ישנות (LEGACY, מלפני תמיכת ריבוי-כרטיסים) מוחלפות גם הן.
+          const others = s.expenses.filter((e) => {
+            if (e.monthKey !== mk) return true
+            if (e.card === card) return false
+            if (e.card === LEGACY_CARD) return false
+            return true
+          })
           const month = s.months[mk] ?? emptyMonth()
           return {
             expenses: [...others, ...expenses],
@@ -266,7 +276,18 @@ export const useStore = create<State>()(
     }),
     {
       name: 'finance-store',
-      version: 1,
+      version: 2,
+      // הוספת שדה card להוצאות שיובאו לפני תמיכת ריבוי-כרטיסים
+      migrate: (persisted, version) => {
+        const state = persisted as State
+        if (version < 2 && state?.expenses) {
+          state.expenses = state.expenses.map((e) => ({
+            ...e,
+            card: e.card || LEGACY_CARD,
+          }))
+        }
+        return state
+      },
     },
   ),
 )

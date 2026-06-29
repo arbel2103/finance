@@ -5,6 +5,7 @@ export type MonthKey = string // "2026-05"
 export interface Expense {
   id: string
   monthKey: MonthKey
+  card: string // מזהה כרטיס האשראי (4 ספרות אחרונות / שם הקובץ)
   date: string // ISO date
   merchant: string
   rawCategory: string // "ענף" מהאקסל

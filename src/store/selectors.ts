@@ -75,6 +75,27 @@ export function transactionCount(expenses: Expense[], mk: MonthKey): number {
   return monthExpenses(expenses, mk).length
 }
 
+export interface CardSlice {
+  card: string
+  value: number
+  count: number
+}
+
+// פירוט הוצאות לפי כרטיס אשראי (מהגבוה לנמוך)
+export function cardBreakdown(expenses: Expense[], mk: MonthKey): CardSlice[] {
+  const map = new Map<string, { value: number; count: number }>()
+  for (const e of monthExpenses(expenses, mk)) {
+    const key = e.card || 'כרטיס'
+    const cur = map.get(key) || { value: 0, count: 0 }
+    cur.value += effectiveAmount(e)
+    cur.count += 1
+    map.set(key, cur)
+  }
+  return [...map.entries()]
+    .map(([card, v]) => ({ card, value: v.value, count: v.count }))
+    .sort((a, b) => b.value - a.value)
+}
+
 export function averageTransaction(expenses: Expense[], mk: MonthKey): number {
   const list = monthExpenses(expenses, mk)
   if (!list.length) return 0

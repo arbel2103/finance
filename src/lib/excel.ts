@@ -60,6 +60,24 @@ export interface ParseResult {
   total: number
   bitCount: number
   monthKey: MonthKey // החודש שזוהה אוטומטית מתאריכי העסקאות
+  card: string // מזהה הכרטיס שזוהה (4 ספרות / שם קובץ)
+}
+
+// זיהוי מזהה הכרטיס מתוך כותרת הדוח, ובגיבוי משם הקובץ
+function detectCard(titleText: string, fileName: string): string {
+  // "...לכרטיס ויזה ... המסתיים ב-8806"
+  let m = titleText.match(/מסתיים\s*ב[-\s]*?(\d{3,4})/)
+  if (m) return m[1]
+  m = titleText.match(/כרטיס[^\d]{0,30}?(\d{4})\b/)
+  if (m) return m[1]
+  // מתוך שם הקובץ: "...ויזה 8806 - 05.26.xlsx"
+  m = fileName.match(/(?:ויזה|כרטיס|card|mastercard|visa)\D{0,10}(\d{4})/i)
+  if (m) return m[1]
+  m = fileName.match(/\b(\d{4})\b/)
+  if (m) return m[1]
+  // גיבוי: שם הקובץ ללא סיומת
+  const base = fileName.replace(/\.[^.]+$/, '').trim()
+  return base || 'כרטיס'
 }
 
 // קביעת חודש היעד מתוך תאריכי העסקאות — החודש השכיח ביותר (ובשוויון, המאוחר)
@@ -88,13 +106,15 @@ function uid(prefix = 'e'): string {
 
 /**
  * מפרסר קובץ אקסל של דוח אשראי (כאל/ויזה) לרשימת הוצאות.
- * החודש נקבע אוטומטית מתוך תאריכי העסקאות שבקובץ.
+ * החודש והכרטיס נקבעים אוטומטית מתוך הקובץ.
  * @param buffer תוכן הקובץ
  * @param userMap מיפוי ענף→קטגוריה (דריסות המשתמש)
+ * @param fileName שם הקובץ (לגיבוי זיהוי הכרטיס)
  */
 export function parseExpensesFromBuffer(
   buffer: ArrayBuffer,
   userMap: Record<string, string>,
+  fileName = '',
 ): ParseResult {
   const wb = XLSX.read(buffer, { type: 'array' })
   const sheet = wb.Sheets[wb.SheetNames[0]]
@@ -116,6 +136,13 @@ export function parseExpensesFromBuffer(
   if (headerIdx === -1) {
     throw new Error('לא נמצאה שורת כותרת תקינה בקובץ. ודא שזהו דוח עסקאות אשראי.')
   }
+
+  // טקסט הכותרת (השורות שלפני שורת הכותרת) לזיהוי מספר הכרטיס
+  const titleText = rows
+    .slice(0, headerIdx)
+    .map((r) => (r || []).map(normalize).join(' '))
+    .join(' ')
+  const card = detectCard(titleText, fileName)
 
   // מיפוי עמודות לפי כותרת
   const headerCells = (rows[headerIdx] || []).map(normalize)
@@ -158,6 +185,7 @@ export function parseExpensesFromBuffer(
     const exp: Expense = {
       id: uid(),
       monthKey: '', // ייקבע אחרי זיהוי החודש מהתאריכים
+      card,
       date: iso,
       merchant,
       rawCategory,
@@ -176,5 +204,5 @@ export function parseExpensesFromBuffer(
   const monthKey = detectMonth(expenses.map((e) => e.date))
   for (const e of expenses) e.monthKey = monthKey
 
-  return { expenses, total, bitCount, monthKey }
+  return { expenses, total, bitCount, monthKey, card }
 }
