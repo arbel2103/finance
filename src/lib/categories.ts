@@ -29,29 +29,49 @@ const _byName: Record<string, CategoryDef> = Object.fromEntries(
   CANONICAL_CATEGORIES.map((c) => [c.name, c]),
 )
 
-export function getCategoryDef(name: string): CategoryDef {
-  return _byName[name] ?? { name, color: '#8f8c85', icon: '📦' }
+// פלטת צבעים לקטגוריות מותאמות אישית
+const CUSTOM_PALETTE = [
+  '#9c6b4a',
+  '#6b8fb0',
+  '#a05c9c',
+  '#5f9c7d',
+  '#b0913a',
+  '#c06a6a',
+  '#7d7da0',
+  '#4a9c9c',
+]
+
+export function nextCustomColor(existingCount: number): string {
+  return CUSTOM_PALETTE[existingCount % CUSTOM_PALETTE.length]
 }
 
-export function categoryColor(name: string): string {
-  return getCategoryDef(name).color
-}
+const FALLBACK: CategoryDef = { name: 'אחר', color: '#8f8c85', icon: '🏷️' }
 
-export function categoryIcon(name: string): string {
-  return getCategoryDef(name).icon
+// חיפוש הגדרת קטגוריה — קנונית או מותאמת אישית (מועברת מה-store, ריאקטיבי)
+export function findCategoryDef(
+  name: string,
+  custom: CategoryDef[] = [],
+): CategoryDef {
+  return (
+    _byName[name] ??
+    custom.find((c) => c.name === name) ?? { ...FALLBACK, name }
+  )
 }
 
 // מיפוי ברירת מחדל מ"ענף" של הבנק (כאל/ויזה) → קטגוריה קנונית
 export const DEFAULT_CATEGORY_MAP: Record<string, string> = {
   // אוכל
   'מזון ומשקאות': 'מזון וסופר',
+  'מזון וצריכה': 'מזון וסופר',
   סופרמרקט: 'מזון וסופר',
   מסעדות: 'מסעדות ואוכל בחוץ',
+  'מסעדות, קפה וברים': 'מסעדות ואוכל בחוץ',
   'בתי קפה': 'מסעדות ואוכל בחוץ',
   'מזון מהיר': 'מסעדות ואוכל בחוץ',
   // פנאי
   'פנאי בילוי': 'פנאי ובילוי',
   'פנאי ובילוי': 'פנאי ובילוי',
+  'פנאי, בידור וספורט': 'פנאי ובילוי',
   אירועים: 'פנאי ובילוי',
   בידור: 'פנאי ובילוי',
   ספורט: 'פנאי ובילוי',
@@ -73,10 +93,12 @@ export const DEFAULT_CATEGORY_MAP: Record<string, string> = {
   דלק: 'דלק ותחבורה',
   תחבורה: 'דלק ותחבורה',
   'רכב ותחבורה': 'דלק ותחבורה',
+  'דלק, חשמל וגז': 'דלק ותחבורה',
   חניה: 'דלק ותחבורה',
   // טכנולוגיה
   'תקשורת ומחשבים': 'תקשורת וטכנולוגיה',
   'מחשבים ותוכנה': 'תקשורת וטכנולוגיה',
+  'חשמל ומחשבים': 'תקשורת וטכנולוגיה',
   // תיירות
   תיירות: 'תיירות ונסיעות',
   'נסיעות ותיירות': 'תיירות ונסיעות',
@@ -102,10 +124,7 @@ export function mapCategory(
   rawCategory: string,
   userMap: Record<string, string>,
 ): string {
-  return (
-    userMap[rawCategory] ??
-    DEFAULT_CATEGORY_MAP[rawCategory] ??
-    rawCategory ??
-    'אחר'
-  )
+  const raw = (rawCategory || '').trim()
+  if (!raw) return 'אחר' // קבצים ללא עמודת קטגוריה (דיינרס)
+  return userMap[raw] ?? DEFAULT_CATEGORY_MAP[raw] ?? raw
 }

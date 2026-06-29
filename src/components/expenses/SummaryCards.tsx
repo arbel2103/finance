@@ -9,7 +9,8 @@ import {
   transactionCount,
 } from '../../store/selectors'
 import { formatCard, formatCurrency, formatNumber } from '../../lib/format'
-import { categoryIcon } from '../../lib/categories'
+import { findCategoryDef } from '../../lib/categories'
+import { useStore } from '../../store/useStore'
 
 interface Props {
   expenses: Expense[]
@@ -18,6 +19,8 @@ interface Props {
 }
 
 export function SummaryCards({ expenses, month, mk }: Props) {
+  const removeCard = useStore((s) => s.removeCard)
+  const customCategories = useStore((s) => s.customCategories)
   const total = monthTotalSpending(expenses, month, mk)
   const count = transactionCount(expenses, mk)
   const top = topCategory(expenses, mk)
@@ -25,23 +28,42 @@ export function SummaryCards({ expenses, month, mk }: Props) {
 
   const cards = cardBreakdown(expenses, mk)
   const transfers = bankTransfersTotal(month)
-  // הצג פירוט רק כשיש יותר ממקור הוצאות אחד
-  const showBreakdown = cards.length + (transfers > 0 ? 1 : 0) > 1
+  // הצג פירוט כשיש לפחות כרטיס אחד (כדי לאפשר מחיקה) או העברה בנקאית
+  const showBreakdown = cards.length >= 1 || transfers > 0
+
+  const onDeleteCard = (card: string, label: string) => {
+    if (
+      window.confirm(
+        `למחוק את כל ההוצאות של כרטיס ${label} לחודש זה? (הקובץ שטענת)`,
+      )
+    ) {
+      removeCard(mk, card)
+    }
+  }
 
   const breakdown = showBreakdown ? (
     <div className="mt-2 space-y-1 border-t border-sand-200 pt-2">
       {cards.map((c) => (
-        <div key={c.card} className="flex items-center justify-between gap-3">
+        <div key={c.card} className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1 text-ink-500">
             💳 {formatCard(c.card)}
           </span>
-          <span className="font-medium text-ink-700 num">
-            {formatCurrency(c.value)}
+          <span className="flex items-center gap-1.5">
+            <span className="font-medium text-ink-700 num">
+              {formatCurrency(c.value)}
+            </span>
+            <button
+              onClick={() => onDeleteCard(c.card, formatCard(c.card))}
+              className="text-ink-300 hover:text-red-500"
+              title="מחיקת הוצאות הכרטיס לחודש זה"
+            >
+              ✕
+            </button>
           </span>
         </div>
       ))}
       {transfers > 0 && (
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1 text-ink-500">🏦 העברה בנקאית</span>
           <span className="font-medium text-ink-700 num">
             {formatCurrency(transfers)}
@@ -70,7 +92,7 @@ export function SummaryCards({ expenses, month, mk }: Props) {
           )
         }
         sub={top ? formatCurrency(top.value) : undefined}
-        icon={top ? categoryIcon(top.category) : '🏆'}
+        icon={top ? findCategoryDef(top.category, customCategories).icon : '🏆'}
       />
       <StatCard label="ממוצע לעסקה" value={formatCurrency(avg)} icon="📊" />
     </div>

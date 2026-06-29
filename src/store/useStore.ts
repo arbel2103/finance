@@ -9,6 +9,8 @@ import type {
   MonthData,
   MonthKey,
 } from '../lib/types'
+import type { CategoryDef } from '../lib/categories'
+import { CATEGORY_NAMES, nextCustomColor } from '../lib/categories'
 import { currentMonthKey } from '../lib/date'
 
 function uid(prefix = 'id'): string {
@@ -26,6 +28,7 @@ interface State {
   months: Record<MonthKey, MonthData>
   expenses: Expense[]
   categoryMap: Record<string, string>
+  customCategories: CategoryDef[]
   checking: Checking
   accounts: Account[]
   investments: InvestmentEntry[]
@@ -35,11 +38,16 @@ interface State {
   setSelectedMonth: (mk: MonthKey) => void
 
   // ייבוא והוצאות
-  commitImport: (mk: MonthKey, card: string, expenses: Expense[]) => void
+  commitImport: (mk: MonthKey, cards: string[], expenses: Expense[]) => void
+  removeCard: (mk: MonthKey, card: string) => void
   clearMonthExpenses: (mk: MonthKey) => void
   updateExpenseCategory: (id: string, category: string) => void
   setExpenseRefund: (id: string, refund: number) => void
   setExpenseGoal: (id: string, goalId: string | undefined) => void
+
+  // קטגוריות מותאמות אישית
+  addCustomCategory: (name: string) => void
+  removeCustomCategory: (name: string) => void
 
   // הכנסות והעברות
   setSalary: (mk: MonthKey, amount: number) => void
@@ -68,6 +76,7 @@ export const useStore = create<State>()(
       months: {},
       expenses: [],
       categoryMap: {},
+      customCategories: [],
       checking: { amount: 0, updatedAt: new Date().toISOString() },
       accounts: [],
       investments: [],
@@ -75,14 +84,15 @@ export const useStore = create<State>()(
 
       setSelectedMonth: (mk) => set({ selectedMonth: mk }),
 
-      commitImport: (mk, card, expenses) =>
+      commitImport: (mk, cards, expenses) =>
         set((s) => {
-          // החלפת הוצאות אותו חודש + אותו כרטיס בלבד (מונע כפילות,
+          // החלפת הוצאות אותו חודש + אותם כרטיסים בלבד (מונע כפילות,
           // אך שומר הוצאות של כרטיסים אחרים באותו חודש).
           // הוצאות ישנות (LEGACY, מלפני תמיכת ריבוי-כרטיסים) מוחלפות גם הן.
+          const cardSet = new Set(cards)
           const others = s.expenses.filter((e) => {
             if (e.monthKey !== mk) return true
-            if (e.card === card) return false
+            if (cardSet.has(e.card)) return false
             if (e.card === LEGACY_CARD) return false
             return true
           })
@@ -92,6 +102,48 @@ export const useStore = create<State>()(
             months: { ...s.months, [mk]: { ...month, imported: true } },
           }
         }),
+
+      removeCard: (mk, card) =>
+        set((s) => {
+          const expenses = s.expenses.filter(
+            (e) => !(e.monthKey === mk && e.card === card),
+          )
+          // אם לא נשארו הוצאות לחודש — בטל את סימון "נטען"
+          const stillHas = expenses.some((e) => e.monthKey === mk)
+          const month = s.months[mk] ?? emptyMonth()
+          return {
+            expenses,
+            months: { ...s.months, [mk]: { ...month, imported: stillHas } },
+          }
+        }),
+
+      addCustomCategory: (name) =>
+        set((s) => {
+          const trimmed = name.trim()
+          if (!trimmed) return {}
+          // לא להוסיף אם כבר קיים (קנוני או מותאם)
+          if (
+            CATEGORY_NAMES.includes(trimmed) ||
+            s.customCategories.some((c) => c.name === trimmed)
+          ) {
+            return {}
+          }
+          return {
+            customCategories: [
+              ...s.customCategories,
+              {
+                name: trimmed,
+                color: nextCustomColor(s.customCategories.length),
+                icon: '🏷️',
+              },
+            ],
+          }
+        }),
+
+      removeCustomCategory: (name) =>
+        set((s) => ({
+          customCategories: s.customCategories.filter((c) => c.name !== name),
+        })),
 
       clearMonthExpenses: (mk) =>
         set((s) => {
@@ -276,15 +328,19 @@ export const useStore = create<State>()(
     }),
     {
       name: 'finance-store',
-      version: 2,
-      // הוספת שדה card להוצאות שיובאו לפני תמיכת ריבוי-כרטיסים
+      version: 3,
       migrate: (persisted, version) => {
         const state = persisted as State
+        // v2: הוספת שדה card להוצאות שיובאו לפני תמיכת ריבוי-כרטיסים
         if (version < 2 && state?.expenses) {
           state.expenses = state.expenses.map((e) => ({
             ...e,
             card: e.card || LEGACY_CARD,
           }))
+        }
+        // v3: הוספת רשימת קטגוריות מותאמות
+        if (version < 3 && state && !state.customCategories) {
+          state.customCategories = []
         }
         return state
       },

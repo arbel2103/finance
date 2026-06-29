@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import type { CategorySlice } from '../../store/selectors'
-import { categoryColor } from '../../lib/categories'
+import { findCategoryDef } from '../../lib/categories'
+import { useStore } from '../../store/useStore'
 import { formatCurrency } from '../../lib/format'
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export function CategoryPie({ data, activeCategory, onSlice }: Props) {
+  const customCategories = useStore((s) => s.customCategories)
+  const colorOf = (name: string) => findCategoryDef(name, customCategories).color
   const total = data.reduce((s, d) => s + d.value, 0)
 
   if (!data.length) {
@@ -43,7 +46,7 @@ export function CategoryPie({ data, activeCategory, onSlice }: Props) {
               {data.map((d) => (
                 <Cell
                   key={d.category}
-                  fill={categoryColor(d.category)}
+                  fill={colorOf(d.category)}
                   opacity={
                     activeCategory && activeCategory !== d.category ? 0.3 : 1
                   }
@@ -82,7 +85,7 @@ export function CategoryPie({ data, activeCategory, onSlice }: Props) {
             >
               <span
                 className="h-3 w-3 shrink-0 rounded-full"
-                style={{ background: categoryColor(d.category) }}
+                style={{ background: colorOf(d.category) }}
               />
               <span className="flex-1 text-sm text-ink-700 truncate">
                 {d.category}

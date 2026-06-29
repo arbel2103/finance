@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { Expense } from '../../lib/types'
 import { useStore } from '../../store/useStore'
 import { effectiveAmount } from '../../store/selectors'
-import { categoryColor, categoryIcon } from '../../lib/categories'
+import { findCategoryDef } from '../../lib/categories'
 import { formatCurrency } from '../../lib/format'
 import { formatDate } from '../../lib/date'
 import { CategorySelect } from '../CategorySelect'
@@ -18,9 +18,13 @@ type EditMode = 'category' | 'refund' | 'goal'
 
 export function ExpenseList({ expenses }: Props) {
   const accounts = useStore((s) => s.accounts)
+  const customCategories = useStore((s) => s.customCategories)
   const updateExpenseCategory = useStore((s) => s.updateExpenseCategory)
   const setExpenseRefund = useStore((s) => s.setExpenseRefund)
   const setExpenseGoal = useStore((s) => s.setExpenseGoal)
+
+  const colorOf = (name: string) => findCategoryDef(name, customCategories).color
+  const iconOf = (name: string) => findCategoryDef(name, customCategories).icon
 
   const [editing, setEditing] = useState<{ id: string; mode: EditMode } | null>(
     null,
@@ -60,9 +64,9 @@ export function ExpenseList({ expenses }: Props) {
             <div className="flex items-center gap-3">
               <span
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm"
-                style={{ background: `${categoryColor(e.category)}22` }}
+                style={{ background: `${colorOf(e.category)}22` }}
               >
-                {categoryIcon(e.category)}
+                {iconOf(e.category)}
               </span>
 
               <div className="min-w-0 flex-1">
@@ -79,7 +83,7 @@ export function ExpenseList({ expenses }: Props) {
                 <div className="flex items-center gap-2 text-xs text-ink-400">
                   <span>{formatDate(e.date)}</span>
                   <span>·</span>
-                  <span style={{ color: categoryColor(e.category) }}>
+                  <span style={{ color: colorOf(e.category) }}>
                     {e.category}
                   </span>
                   {e.refund > 0 && (

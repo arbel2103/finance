@@ -7,10 +7,11 @@ import type {
   MonthKey,
 } from '../lib/types'
 
-// סכום אפקטיבי של הוצאה: סכום חיוב (או עסקה אם בקליטה) פחות החזר
+// סכום אפקטיבי של הוצאה: סכום חיוב (או עסקה אם בקליטה) פחות החזר.
+// יכול להיות שלילי עבור זיכויים/החזרים — כך שהם מתקזזים בסיכומים.
 export function effectiveAmount(e: Expense): number {
   const base = e.chargeAmount ?? e.txnAmount
-  return Math.max(0, base - (e.refund || 0))
+  return base - (e.refund || 0)
 }
 
 export function monthExpenses(expenses: Expense[], mk: MonthKey): Expense[] {

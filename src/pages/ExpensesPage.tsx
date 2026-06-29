@@ -48,7 +48,7 @@ export function ExpensesPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<Expense[]>([])
   const [pendingMonth, setPendingMonth] = useState<MonthKey>(selectedMonth)
-  const [pendingCard, setPendingCard] = useState<string>('')
+  const [pendingCards, setPendingCards] = useState<string[]>([])
   const [bitOpen, setBitOpen] = useState(false)
 
   const handleFile = async (file: File) => {
@@ -61,26 +61,28 @@ export function ExpensesPage() {
         alert('לא נמצאו עסקאות עם תאריך תקין בקובץ.')
         return
       }
-      // החודש והכרטיס נקבעים אוטומטית מתוך הקובץ
+      // החודש והכרטיסים נקבעים אוטומטית מתוך הקובץ
       const target = res.monthKey
-      const alreadyHasCard = expenses.some(
-        (e) => e.monthKey === target && e.card === res.card,
+      const cardSet = new Set(res.cards)
+      const alreadyHas = expenses.some(
+        (e) => e.monthKey === target && cardSet.has(e.card),
       )
-      if (alreadyHasCard) {
+      if (alreadyHas) {
+        const label = res.cards.map(formatCard).join(', ')
         const ok = window.confirm(
-          `כבר נטען כרטיס ${formatCard(res.card)} לחודש ${monthLabel(target)}. להחליף את ההוצאות שלו בקובץ החדש?`,
+          `כבר נטענו נתונים לכרטיס ${label} בחודש ${monthLabel(target)}. להחליף אותם בקובץ החדש?`,
         )
         if (!ok) return
       }
       setSelectedMonth(target) // מעבר אוטומטי לחודש שזוהה
       setPendingMonth(target)
-      setPendingCard(res.card)
+      setPendingCards(res.cards)
       setPending(res.expenses)
       const bits = res.expenses.filter((e) => e.isBit)
       if (bits.length) {
         setBitOpen(true)
       } else {
-        commitImport(target, res.card, res.expenses)
+        commitImport(target, res.cards, res.expenses)
       }
     } catch (err) {
       alert((err as Error).message || 'שגיאה בקריאת הקובץ')
@@ -93,7 +95,7 @@ export function ExpensesPage() {
     )
 
   const confirmBit = () => {
-    commitImport(pendingMonth, pendingCard, pending)
+    commitImport(pendingMonth, pendingCards, pending)
     setBitOpen(false)
     setPending([])
   }
@@ -268,7 +270,12 @@ function TrendTab() {
 function CategoryTrendTab() {
   const selectedMonth = useStore((s) => s.selectedMonth)
   const expenses = useStore((s) => s.expenses)
+  const customCategories = useStore((s) => s.customCategories)
   const monthOptions = useMonthOptions(selectedMonth)
+  const categoryNames = [
+    ...CATEGORY_NAMES,
+    ...customCategories.map((c) => c.name),
+  ]
   const [category, setCategory] = useState(CATEGORY_NAMES[0])
   const [range, setRange] = useState<RangeValue>({
     preset: 6,
@@ -293,7 +300,7 @@ function CategoryTrendTab() {
           <span className="text-sm font-medium text-ink-700">קטגוריה:</span>
           <div className="w-48">
             <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {CATEGORY_NAMES.map((c) => (
+              {categoryNames.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
