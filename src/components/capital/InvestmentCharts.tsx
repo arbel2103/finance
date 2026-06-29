@@ -72,13 +72,17 @@ export function InvestmentCharts() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <Card className="space-y-3">
         <h3 className="text-sm font-medium text-ink-700">
           השקעה חודשית לפי חשבון
         </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={stackedData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart
+            data={stackedData}
+            margin={{ top: 8, right: 4, left: 4, bottom: 4 }}
+            barCategoryGap="22%"
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
             <XAxis
               dataKey="label"
@@ -90,7 +94,7 @@ export function InvestmentCharts() {
               tick={{ fontSize: 11, fill: '#8f8c85' }}
               axisLine={false}
               tickLine={false}
-              width={56}
+              width={52}
               orientation="right"
               tickFormatter={(v) => formatCurrency(v)}
             />
@@ -115,8 +119,8 @@ export function InvestmentCharts() {
                 dataKey={a.id}
                 stackId="invest"
                 fill={colorByAccount[a.id]}
-                radius={[4, 4, 0, 0]}
-                maxBarSize={56}
+                radius={[3, 3, 0, 0]}
+                maxBarSize={34}
               />
             ))}
           </BarChart>
@@ -127,8 +131,12 @@ export function InvestmentCharts() {
         <h3 className="text-sm font-medium text-ink-700">
           השקעה כאחוז מהמשכורת
         </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={percentData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart
+            data={percentData}
+            margin={{ top: 8, right: 4, left: 4, bottom: 4 }}
+            barCategoryGap="22%"
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
             <XAxis
               dataKey="label"
@@ -152,9 +160,9 @@ export function InvestmentCharts() {
                 fontSize: 13,
               }}
             />
-            <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={56}>
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={34}>
               {percentData.map((d, i) => (
-                <Cell key={i} fill={d.hasSalary ? '#4a8fb0' : '#cbd5d1'} />
+                <Cell key={i} fill={d.hasSalary ? '#2f8fd0' : '#cbd5d1'} />
               ))}
             </Bar>
           </BarChart>
