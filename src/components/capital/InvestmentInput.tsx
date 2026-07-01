@@ -3,22 +3,26 @@ import { useStore } from '../../store/useStore'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { NumberInput, Select, Field } from '../ui/Input'
-import { addMonths, monthLabel } from '../../lib/date'
+import { addMonths, currentMonthKey, monthLabel } from '../../lib/date'
 
 export function InvestmentInput() {
   const accounts = useStore((s) => s.accounts)
   const selectedMonth = useStore((s) => s.selectedMonth)
   const addInvestment = useStore((s) => s.addInvestment)
 
-  const [month, setMonth] = useState(selectedMonth)
+  // ברירת מחדל: החודש הנוכחי (השקעה ב-1 לחודש)
+  const nowMonth = currentMonthKey()
+  const [month, setMonth] = useState(nowMonth)
   const [amount, setAmount] = useState('')
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
 
   const monthOptions = useMemo(() => {
     const set = new Set<string>()
-    for (let i = 0; i < 18; i++) set.add(addMonths(selectedMonth, -i))
+    // 2 חודשים קדימה עד 18 חודשים אחורה מהחודש הנוכחי
+    for (let i = 2; i >= -18; i--) set.add(addMonths(nowMonth, i))
+    set.add(selectedMonth) // ודא שגם החודש הנבחר בדף ההוצאות זמין
     return [...set].sort().reverse()
-  }, [selectedMonth])
+  }, [nowMonth, selectedMonth])
 
   const submit = () => {
     const amt = Number(amount)
