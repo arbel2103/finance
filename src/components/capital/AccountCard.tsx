@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Account } from '../../lib/types'
 import { useStore } from '../../store/useStore'
 import {
   accountEffectiveBalance,
   accountRemainingToGoals,
+  collectSavingLinks,
   goalAllocated,
   goalRemaining,
 } from '../../store/selectors'
@@ -16,6 +17,8 @@ import { NumberInput, TextInput, Field } from '../ui/Input'
 
 export function AccountCard({ account }: { account: Account }) {
   const expenses = useStore((s) => s.expenses)
+  const monthsData = useStore((s) => s.months)
+  const accounts = useStore((s) => s.accounts)
   const updateAccountBalance = useStore((s) => s.updateAccountBalance)
   const addGoal = useStore((s) => s.addGoal)
   const removeGoal = useStore((s) => s.removeGoal)
@@ -25,8 +28,12 @@ export function AccountCard({ account }: { account: Account }) {
   const [goalOpen, setGoalOpen] = useState(false)
   const [months, setMonths] = useState(12)
 
-  const effective = accountEffectiveBalance(account, expenses)
-  const remaining = accountRemainingToGoals(account, expenses)
+  const links = useMemo(
+    () => collectSavingLinks(expenses, monthsData, accounts),
+    [expenses, monthsData, accounts],
+  )
+  const effective = accountEffectiveBalance(account, links)
+  const remaining = accountRemainingToGoals(account, links)
   const monthlyNeeded = months > 0 ? remaining / months : 0
   const goalsWithTarget = account.goals.some(
     (g) => g.targetAmount !== undefined && g.targetAmount !== null,
@@ -89,8 +96,8 @@ export function AccountCard({ account }: { account: Account }) {
       {account.goals.length > 0 && (
         <div className="space-y-2 border-t border-sand-200 pt-3">
           {account.goals.map((g) => {
-            const alloc = goalAllocated(g, expenses)
-            const rem = goalRemaining(g, expenses)
+            const alloc = goalAllocated(g, links)
+            const rem = goalRemaining(g, links)
             const pct =
               g.targetAmount && g.targetAmount > 0
                 ? Math.min(100, Math.round((alloc / g.targetAmount) * 100))

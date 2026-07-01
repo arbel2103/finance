@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Expense } from '../../lib/types'
 import { useStore } from '../../store/useStore'
@@ -7,7 +7,8 @@ import { findCategoryDef } from '../../lib/categories'
 import { formatCurrency } from '../../lib/format'
 import { formatDate } from '../../lib/date'
 import { CategorySelect } from '../CategorySelect'
-import { NumberInput, Select } from '../ui/Input'
+import { SavingsLinkSelect, useSavingLabel } from '../SavingsLinkSelect'
+import { NumberInput } from '../ui/Input'
 import { Button } from '../ui/Button'
 
 interface Props {
@@ -17,11 +18,11 @@ interface Props {
 type EditMode = 'category' | 'refund' | 'goal'
 
 export function ExpenseList({ expenses }: Props) {
-  const accounts = useStore((s) => s.accounts)
   const customCategories = useStore((s) => s.customCategories)
   const updateExpenseCategory = useStore((s) => s.updateExpenseCategory)
   const setExpenseRefund = useStore((s) => s.setExpenseRefund)
-  const setExpenseGoal = useStore((s) => s.setExpenseGoal)
+  const setExpenseSaving = useStore((s) => s.setExpenseSaving)
+  const savingLabel = useSavingLabel()
 
   const colorOf = (name: string) => findCategoryDef(name, customCategories).color
   const iconOf = (name: string) => findCategoryDef(name, customCategories).icon
@@ -29,20 +30,6 @@ export function ExpenseList({ expenses }: Props) {
   const [editing, setEditing] = useState<{ id: string; mode: EditMode } | null>(
     null,
   )
-
-  const goalOptions = useMemo(
-    () =>
-      accounts.flatMap((a) =>
-        a.goals.map((g) => ({ id: g.id, label: `${a.name} · ${g.name}` })),
-      ),
-    [accounts],
-  )
-
-  const goalLabel = (goalId?: string) => {
-    if (!goalId) return null
-    const opt = goalOptions.find((o) => o.id === goalId)
-    return opt?.label ?? null
-  }
 
   const toggle = (id: string, mode: EditMode) =>
     setEditing((cur) => (cur && cur.id === id && cur.mode === mode ? null : { id, mode }))
@@ -91,8 +78,10 @@ export function ExpenseList({ expenses }: Props) {
                       · הוחזר {formatCurrency(e.refund)}
                     </span>
                   )}
-                  {e.savingsGoalId && (
-                    <span className="text-sage-600">· 🎯 {goalLabel(e.savingsGoalId)}</span>
+                  {(e.savingsAccountId || e.savingsGoalId) && (
+                    <span className="text-sage-600">
+                      · 🎯 {savingLabel(e.savingsAccountId, e.savingsGoalId)}
+                    </span>
                   )}
                 </div>
               </div>
@@ -151,26 +140,14 @@ export function ExpenseList({ expenses }: Props) {
 
                 {editing?.mode === 'goal' && (
                   <div className="max-w-sm">
-                    {goalOptions.length === 0 ? (
-                      <p className="text-xs text-ink-400">
-                        עדיין לא הוגדרו מטרות חיסכון. הוסף מטרה בדף "הון והשקעות".
-                      </p>
-                    ) : (
-                      <Select
-                        value={e.savingsGoalId ?? ''}
-                        onChange={(ev) => {
-                          setExpenseGoal(e.id, ev.target.value || undefined)
-                          setEditing(null)
-                        }}
-                      >
-                        <option value="">ללא שיוך</option>
-                        {goalOptions.map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
+                    <SavingsLinkSelect
+                      accountId={e.savingsAccountId}
+                      goalId={e.savingsGoalId}
+                      onChange={(acc, goal) => {
+                        setExpenseSaving(e.id, acc, goal)
+                        setEditing(null)
+                      }}
+                    />
                   </div>
                 )}
               </div>

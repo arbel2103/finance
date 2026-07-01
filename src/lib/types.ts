@@ -15,7 +15,8 @@ export interface Expense {
   refund: number // החזר מחבר (ברירת מחדל 0)
   pending: boolean
   isBit: boolean // האם זוהתה כהעברת ביט / "שונות"
-  savingsGoalId?: string // שיוך למטרת חיסכון
+  savingsAccountId?: string // שיוך לחשבון חיסכון/השקעה (מוריד מהיתרה)
+  savingsGoalId?: string // שיוך למטרת חיסכון ספציפית (אופציונלי)
 }
 
 export interface IncomeItem {
@@ -24,11 +25,20 @@ export interface IncomeItem {
   amount: number
 }
 
+// העברה בנקאית — הוצאה ידנית שאפשר לשייך לחיסכון/השקעה
+export interface BankTransfer {
+  id: string
+  label: string
+  amount: number
+  savingsAccountId?: string
+  savingsGoalId?: string
+}
+
 export interface MonthData {
   imported: boolean
   salary: number
   extraIncome: IncomeItem[]
-  bankTransfers: IncomeItem[] // הוצאות גדולות ידניות (לא באשראי)
+  bankTransfers: BankTransfer[] // הוצאות גדולות ידניות (לא באשראי)
 }
 
 export interface Goal {

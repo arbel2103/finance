@@ -43,7 +43,11 @@ interface State {
   clearMonthExpenses: (mk: MonthKey) => void
   updateExpenseCategory: (id: string, category: string) => void
   setExpenseRefund: (id: string, refund: number) => void
-  setExpenseGoal: (id: string, goalId: string | undefined) => void
+  setExpenseSaving: (
+    id: string,
+    accountId: string | undefined,
+    goalId: string | undefined,
+  ) => void
 
   // קטגוריות מותאמות אישית
   addCustomCategory: (name: string) => void
@@ -55,6 +59,12 @@ interface State {
   removeExtraIncome: (mk: MonthKey, id: string) => void
   addBankTransfer: (mk: MonthKey, label: string, amount: number) => void
   removeBankTransfer: (mk: MonthKey, id: string) => void
+  setBankTransferSaving: (
+    mk: MonthKey,
+    id: string,
+    accountId: string | undefined,
+    goalId: string | undefined,
+  ) => void
 
   // הון
   setChecking: (amount: number) => void
@@ -168,10 +178,12 @@ export const useStore = create<State>()(
           ),
         })),
 
-      setExpenseGoal: (id, goalId) =>
+      setExpenseSaving: (id, accountId, goalId) =>
         set((s) => ({
           expenses: s.expenses.map((e) =>
-            e.id === id ? { ...e, savingsGoalId: goalId } : e,
+            e.id === id
+              ? { ...e, savingsAccountId: accountId, savingsGoalId: goalId }
+              : e,
           ),
         })),
 
@@ -243,6 +255,24 @@ export const useStore = create<State>()(
           }
         }),
 
+      setBankTransferSaving: (mk, id, accountId, goalId) =>
+        set((s) => {
+          const month = s.months[mk] ?? emptyMonth()
+          return {
+            months: {
+              ...s.months,
+              [mk]: {
+                ...month,
+                bankTransfers: month.bankTransfers.map((t) =>
+                  t.id === id
+                    ? { ...t, savingsAccountId: accountId, savingsGoalId: goalId }
+                    : t,
+                ),
+              },
+            },
+          }
+        }),
+
       setChecking: (amount) =>
         set({ checking: { amount, updatedAt: new Date().toISOString() } }),
 
@@ -262,18 +292,29 @@ export const useStore = create<State>()(
         })),
 
       removeAccount: (id) =>
-        set((s) => ({
-          accounts: s.accounts.filter((a) => a.id !== id),
-          investments: s.investments.filter((i) => i.accountId !== id),
-          // ניתוק הוצאות ששויכו למטרות בחשבון שנמחק
-          expenses: s.expenses.map((e) => {
-            const acc = s.accounts.find((a) => a.id === id)
-            if (acc && e.savingsGoalId && acc.goals.some((g) => g.id === e.savingsGoalId)) {
-              return { ...e, savingsGoalId: undefined }
-            }
-            return e
-          }),
-        })),
+        set((s) => {
+          const acc = s.accounts.find((a) => a.id === id)
+          const goalIds = new Set(acc?.goals.map((g) => g.id) ?? [])
+          const linkedToAcc = (aid?: string, gid?: string) =>
+            aid === id || (gid ? goalIds.has(gid) : false)
+          const clear = <T extends { savingsAccountId?: string; savingsGoalId?: string }>(
+            x: T,
+          ): T =>
+            linkedToAcc(x.savingsAccountId, x.savingsGoalId)
+              ? { ...x, savingsAccountId: undefined, savingsGoalId: undefined }
+              : x
+          return {
+            accounts: s.accounts.filter((a) => a.id !== id),
+            investments: s.investments.filter((i) => i.accountId !== id),
+            expenses: s.expenses.map(clear),
+            months: Object.fromEntries(
+              Object.entries(s.months).map(([mk, m]) => [
+                mk,
+                { ...m, bankTransfers: m.bankTransfers.map(clear) },
+              ]),
+            ),
+          }
+        }),
 
       updateAccountBalance: (id, balance) =>
         set((s) => ({
@@ -302,16 +343,25 @@ export const useStore = create<State>()(
         })),
 
       removeGoal: (accountId, goalId) =>
-        set((s) => ({
-          accounts: s.accounts.map((a) =>
-            a.id === accountId
-              ? { ...a, goals: a.goals.filter((g) => g.id !== goalId) }
-              : a,
-          ),
-          expenses: s.expenses.map((e) =>
-            e.savingsGoalId === goalId ? { ...e, savingsGoalId: undefined } : e,
-          ),
-        })),
+        set((s) => {
+          // הסרת המטרה בלבד — השיוך לחשבון נשמר (עדיין מוריד מהיתרה)
+          const dropGoal = <T extends { savingsGoalId?: string }>(x: T): T =>
+            x.savingsGoalId === goalId ? { ...x, savingsGoalId: undefined } : x
+          return {
+            accounts: s.accounts.map((a) =>
+              a.id === accountId
+                ? { ...a, goals: a.goals.filter((g) => g.id !== goalId) }
+                : a,
+            ),
+            expenses: s.expenses.map(dropGoal),
+            months: Object.fromEntries(
+              Object.entries(s.months).map(([mk, m]) => [
+                mk,
+                { ...m, bankTransfers: m.bankTransfers.map(dropGoal) },
+              ]),
+            ),
+          }
+        }),
 
       addInvestment: (mk, amount, accountId) =>
         set((s) => ({

@@ -7,6 +7,7 @@ import type { MonthData, MonthKey } from '../../lib/types'
 import { useStore } from '../../store/useStore'
 import { formatCurrency } from '../../lib/format'
 import { monthIncome } from '../../store/selectors'
+import { SavingsLinkSelect, useSavingLabel } from '../SavingsLinkSelect'
 
 interface Props {
   month: MonthData
@@ -19,6 +20,8 @@ export function IncomeRow({ month, mk }: Props) {
   const removeExtraIncome = useStore((s) => s.removeExtraIncome)
   const addBankTransfer = useStore((s) => s.addBankTransfer)
   const removeBankTransfer = useStore((s) => s.removeBankTransfer)
+  const setBankTransferSaving = useStore((s) => s.setBankTransferSaving)
+  const savingLabel = useSavingLabel()
 
   const [incomeOpen, setIncomeOpen] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
@@ -77,20 +80,33 @@ export function IncomeRow({ month, mk }: Props) {
         ) : (
           <div className="space-y-1.5">
             {month.bankTransfers.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between rounded-lg bg-sand-50 px-3 py-1.5 text-sm"
-              >
-                <span className="text-ink-700">{t.label}</span>
-                <span className="flex items-center gap-2">
-                  <span className="font-medium num">{formatCurrency(t.amount)}</span>
-                  <button
-                    onClick={() => removeBankTransfer(mk, t.id)}
-                    className="text-ink-400 hover:text-red-500"
-                  >
-                    ✕
-                  </button>
-                </span>
+              <div key={t.id} className="rounded-lg bg-sand-50 px-3 py-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-700">{t.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium num">{formatCurrency(t.amount)}</span>
+                    <button
+                      onClick={() => removeBankTransfer(mk, t.id)}
+                      className="text-ink-400 hover:text-red-500"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                </div>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="shrink-0 text-[11px] text-ink-400">🎯 שיוך:</span>
+                  <SavingsLinkSelect
+                    accountId={t.savingsAccountId}
+                    goalId={t.savingsGoalId}
+                    onChange={(acc, goal) => setBankTransferSaving(mk, t.id, acc, goal)}
+                    className="py-1 text-xs"
+                  />
+                </div>
+                {(t.savingsAccountId || t.savingsGoalId) && (
+                  <div className="mt-1 text-[11px] text-sage-600">
+                    יורד מהיתרה של {savingLabel(t.savingsAccountId, t.savingsGoalId)}
+                  </div>
+                )}
               </div>
             ))}
             <div className="pt-1 text-xs text-ink-400">

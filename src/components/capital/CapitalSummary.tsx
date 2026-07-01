@@ -1,25 +1,30 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { StatCard } from '../ui/StatCard'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { NumberInput, Field } from '../ui/Input'
 import { useStore } from '../../store/useStore'
-import { totalByType, totalCapital } from '../../store/selectors'
+import { collectSavingLinks, totalByType, totalCapital } from '../../store/selectors'
 import { formatCurrency } from '../../lib/format'
 import { formatDate } from '../../lib/date'
 
 export function CapitalSummary() {
   const accounts = useStore((s) => s.accounts)
   const expenses = useStore((s) => s.expenses)
+  const months = useStore((s) => s.months)
   const checking = useStore((s) => s.checking)
   const setChecking = useStore((s) => s.setChecking)
 
   const [open, setOpen] = useState(false)
   const [val, setVal] = useState('')
 
-  const investments = totalByType(accounts, expenses, 'investment')
-  const savings = totalByType(accounts, expenses, 'savings')
-  const total = totalCapital(accounts, expenses, checking.amount)
+  const links = useMemo(
+    () => collectSavingLinks(expenses, months, accounts),
+    [expenses, months, accounts],
+  )
+  const investments = totalByType(accounts, links, 'investment')
+  const savings = totalByType(accounts, links, 'savings')
+  const total = totalCapital(accounts, links, checking.amount)
 
   const openChecking = () => {
     setVal(checking.amount ? String(checking.amount) : '')

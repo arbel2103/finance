@@ -113,67 +113,107 @@ export function accountByGoalId(
   return accounts.find((a) => a.goals.some((g) => g.id === goalId))
 }
 
-// סך ההוצאות ששויכו לחשבון מסוים (דרך מטרותיו)
-export function expensesLinkedToAccount(
+// שיוך חיסכון מנורמל — סכום, חשבון (מזוהה גם דרך המטרה), ומטרה אופציונלית
+export interface SavingLink {
+  accountId?: string
+  goalId?: string
+  amount: number
+}
+
+// איסוף כל השיוכים לחיסכון/השקעה — מהוצאות אשראי ומהעברות בנקאיות.
+// אם יש שיוך למטרה בלבד, החשבון נגזר מהמטרה (תאימות לאחור).
+export function collectSavingLinks(
   expenses: Expense[],
+  months: Record<MonthKey, MonthData>,
+  accounts: Account[],
+): SavingLink[] {
+  const resolve = (accountId?: string, goalId?: string): string | undefined =>
+    accountId ?? (goalId ? accountByGoalId(accounts, goalId)?.id : undefined)
+
+  const links: SavingLink[] = []
+  for (const e of expenses) {
+    if (e.savingsAccountId || e.savingsGoalId) {
+      links.push({
+        accountId: resolve(e.savingsAccountId, e.savingsGoalId),
+        goalId: e.savingsGoalId,
+        amount: effectiveAmount(e),
+      })
+    }
+  }
+  for (const m of Object.values(months)) {
+    for (const t of m.bankTransfers) {
+      if (t.savingsAccountId || t.savingsGoalId) {
+        links.push({
+          accountId: resolve(t.savingsAccountId, t.savingsGoalId),
+          goalId: t.savingsGoalId,
+          amount: t.amount,
+        })
+      }
+    }
+  }
+  return links
+}
+
+// סך ההוצאות ששויכו לחשבון מסוים
+export function accountLinkedTotal(
   account: Account,
+  links: SavingLink[],
 ): number {
-  const goalIds = new Set(account.goals.map((g) => g.id))
-  return expenses
-    .filter((e) => e.savingsGoalId && goalIds.has(e.savingsGoalId))
-    .reduce((s, e) => s + effectiveAmount(e), 0)
+  return links
+    .filter((l) => l.accountId === account.id)
+    .reduce((s, l) => s + l.amount, 0)
 }
 
 // יתרה אפקטיבית = יתרה ידנית פחות הוצאות משויכות
 export function accountEffectiveBalance(
   account: Account,
-  expenses: Expense[],
+  links: SavingLink[],
 ): number {
-  return account.balance - expensesLinkedToAccount(expenses, account)
+  return account.balance - accountLinkedTotal(account, links)
 }
 
 // סכום ששויך למטרה
-export function goalAllocated(goal: Goal, expenses: Expense[]): number {
-  return expenses
-    .filter((e) => e.savingsGoalId === goal.id)
-    .reduce((s, e) => s + effectiveAmount(e), 0)
+export function goalAllocated(goal: Goal, links: SavingLink[]): number {
+  return links
+    .filter((l) => l.goalId === goal.id)
+    .reduce((s, l) => s + l.amount, 0)
 }
 
 // כמה חסר למטרה (null אם אין יעד)
-export function goalRemaining(goal: Goal, expenses: Expense[]): number | null {
+export function goalRemaining(goal: Goal, links: SavingLink[]): number | null {
   if (goal.targetAmount === undefined || goal.targetAmount === null) return null
-  return Math.max(0, goal.targetAmount - goalAllocated(goal, expenses))
+  return Math.max(0, goal.targetAmount - goalAllocated(goal, links))
 }
 
 // סך החסר לכל מטרות החשבון (רק מטרות עם יעד)
 export function accountRemainingToGoals(
   account: Account,
-  expenses: Expense[],
+  links: SavingLink[],
 ): number {
   return account.goals.reduce((s, g) => {
-    const r = goalRemaining(g, expenses)
+    const r = goalRemaining(g, links)
     return s + (r ?? 0)
   }, 0)
 }
 
 export function totalByType(
   accounts: Account[],
-  expenses: Expense[],
+  links: SavingLink[],
   type: 'savings' | 'investment',
 ): number {
   return accounts
     .filter((a) => a.type === type)
-    .reduce((s, a) => s + accountEffectiveBalance(a, expenses), 0)
+    .reduce((s, a) => s + accountEffectiveBalance(a, links), 0)
 }
 
 export function totalCapital(
   accounts: Account[],
-  expenses: Expense[],
+  links: SavingLink[],
   checkingAmount: number,
 ): number {
   return (
-    totalByType(accounts, expenses, 'savings') +
-    totalByType(accounts, expenses, 'investment') +
+    totalByType(accounts, links, 'savings') +
+    totalByType(accounts, links, 'investment') +
     checkingAmount
   )
 }
