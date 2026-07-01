@@ -14,6 +14,7 @@ import { useStore } from '../../store/useStore'
 import { Card } from '../ui/Card'
 import { monthLabelShort } from '../../lib/date'
 import { formatCurrency, formatPercent } from '../../lib/format'
+import { monthIncome } from '../../store/selectors'
 import { accountColor } from './investColors'
 
 export function InvestmentCharts() {
@@ -46,17 +47,17 @@ export function InvestmentCharts() {
     })
   }, [investMonths, accounts, investments])
 
-  // נתוני אחוז מהמשכורת
+  // נתוני אחוז מסך ההכנסות (משכורת + הכנסות נוספות)
   const percentData = useMemo(() => {
     return investMonths.map((mk) => {
       const total = investments
         .filter((inv) => inv.monthKey === mk)
         .reduce((s, inv) => s + inv.amount, 0)
-      const salary = months[mk]?.salary ?? 0
+      const income = monthIncome(months[mk])
       return {
         label: monthLabelShort(mk),
-        value: salary > 0 ? (total / salary) * 100 : 0,
-        hasSalary: salary > 0,
+        value: income > 0 ? (total / income) * 100 : 0,
+        hasSalary: income > 0,
       }
     })
   }, [investMonths, investments, months])
@@ -129,7 +130,7 @@ export function InvestmentCharts() {
 
       <Card className="space-y-3">
         <h3 className="text-sm font-medium text-ink-700">
-          השקעה כאחוז מהמשכורת
+          השקעה כאחוז מסך ההכנסות
         </h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart
@@ -153,7 +154,7 @@ export function InvestmentCharts() {
               tickFormatter={(v) => `${Math.round(v)}%`}
             />
             <Tooltip
-              formatter={(v) => [formatPercent(Number(v)), 'מהמשכורת']}
+              formatter={(v) => [formatPercent(Number(v)), 'מסך ההכנסות']}
               contentStyle={{
                 borderRadius: 12,
                 border: '1px solid #e9e5db',
@@ -168,7 +169,8 @@ export function InvestmentCharts() {
           </BarChart>
         </ResponsiveContainer>
         <p className="text-[11px] text-ink-400">
-          חודשים ללא משכורת מוזנת מוצגים כ-0%. הזן משכורת בדף ההוצאות.
+          האחוז מחושב מסך ההכנסות (משכורת + הכנסות נוספות) של אותו חודש. חודשים
+          ללא הכנסה מוזנת מוצגים כ-0%. הזן הכנסות בדף ההוצאות.
         </p>
       </Card>
     </div>
