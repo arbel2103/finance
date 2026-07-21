@@ -15,6 +15,7 @@ export interface Expense {
   refund: number // החזר מחבר (ברירת מחדל 0)
   pending: boolean
   isBit: boolean // האם זוהתה כהעברת ביט / "שונות"
+  isManual?: boolean // הוצאה שהוזנה ידנית (לא מאקסל)
   savingsAccountId?: string // שיוך לחשבון חיסכון/השקעה (מוריד מהיתרה)
   savingsGoalId?: string // שיוך למטרת חיסכון ספציפית (אופציונלי)
 }

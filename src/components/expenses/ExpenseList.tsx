@@ -22,6 +22,7 @@ export function ExpenseList({ expenses }: Props) {
   const updateExpenseCategory = useStore((s) => s.updateExpenseCategory)
   const setExpenseRefund = useStore((s) => s.setExpenseRefund)
   const setExpenseSaving = useStore((s) => s.setExpenseSaving)
+  const removeExpense = useStore((s) => s.removeExpense)
   const savingLabel = useSavingLabel()
 
   const colorOf = (name: string) => findCategoryDef(name, customCategories).color
@@ -64,6 +65,11 @@ export function ExpenseList({ expenses }: Props) {
                   {e.pending && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">
                       בקליטה
+                    </span>
+                  )}
+                  {e.isManual && (
+                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] text-sky-700">
+                      ידני
                     </span>
                   )}
                 </div>
@@ -111,6 +117,17 @@ export function ExpenseList({ expenses }: Props) {
                 >
                   🎯
                 </IconBtn>
+                {e.isManual && (
+                  <IconBtn
+                    label="מחיקת הוצאה ידנית"
+                    onClick={() => {
+                      if (window.confirm(`למחוק את ההוצאה "${e.merchant}"?`))
+                        removeExpense(e.id)
+                    }}
+                  >
+                    🗑️
+                  </IconBtn>
+                )}
               </div>
             </div>
 

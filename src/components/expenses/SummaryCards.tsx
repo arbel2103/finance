@@ -46,7 +46,7 @@ export function SummaryCards({ expenses, month, mk }: Props) {
       {cards.map((c) => (
         <div key={c.card} className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1 text-ink-500">
-            💳 {formatCard(c.card)}
+            {c.card === 'ידני' ? '✍️' : '💳'} {formatCard(c.card)}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="font-medium text-ink-700 num">

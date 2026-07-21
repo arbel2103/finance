@@ -18,6 +18,8 @@ function uid(prefix = 'id'): string {
 
 // מזהה כרטיס לנתונים שיובאו לפני תמיכת ריבוי-כרטיסים
 const LEGACY_CARD = 'כרטיס'
+// מזהה ל"כרטיס" של הוצאות ידניות
+const MANUAL_CARD = 'ידני'
 
 export function emptyMonth(): MonthData {
   return { imported: false, salary: 0, extraIncome: [], bankTransfers: [] }
@@ -41,6 +43,13 @@ interface State {
   commitImport: (mk: MonthKey, cards: string[], expenses: Expense[]) => void
   removeCard: (mk: MonthKey, card: string) => void
   clearMonthExpenses: (mk: MonthKey) => void
+  addManualExpense: (
+    mk: MonthKey,
+    label: string,
+    amount: number,
+    category: string,
+  ) => void
+  removeExpense: (id: string) => void
   updateExpenseCategory: (id: string, category: string) => void
   setExpenseRefund: (id: string, refund: number) => void
   setExpenseSaving: (
@@ -166,6 +175,33 @@ export const useStore = create<State>()(
             months: { ...s.months, [mk]: { ...month, imported: false } },
           }
         }),
+
+      addManualExpense: (mk, label, amount, category) =>
+        set((s) => ({
+          expenses: [
+            ...s.expenses,
+            {
+              id: uid('man'),
+              monthKey: mk,
+              card: MANUAL_CARD,
+              date: `${mk}-01`,
+              merchant: label,
+              rawCategory: category,
+              category,
+              txnAmount: amount,
+              chargeAmount: amount,
+              refund: 0,
+              pending: false,
+              isBit: false,
+              isManual: true,
+            },
+          ],
+        })),
+
+      removeExpense: (id) =>
+        set((s) => ({
+          expenses: s.expenses.filter((e) => e.id !== id),
+        })),
 
       updateExpenseCategory: (id, category) =>
         set((s) => ({

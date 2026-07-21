@@ -18,7 +18,7 @@ import { Select } from '../components/ui/Input'
 import { MonthPicker } from '../components/expenses/MonthPicker'
 import { SummaryCards } from '../components/expenses/SummaryCards'
 import { IncomeRow } from '../components/expenses/IncomeRow'
-import { ManualIncomeButton } from '../components/expenses/ManualIncomeButton'
+import { ManualExpenseButton } from '../components/expenses/ManualExpenseButton'
 import { BitModal } from '../components/expenses/BitModal'
 import { CategoryPie } from '../components/expenses/CategoryPie'
 import { ExpenseList } from '../components/expenses/ExpenseList'
@@ -128,7 +128,7 @@ export function ExpensesPage() {
               e.target.value = ''
             }}
           />
-          <ManualIncomeButton />
+          <ManualExpenseButton />
           <Button onClick={() => fileRef.current?.click()}>📥 טען אקסל</Button>
         </div>
       </header>
