@@ -1,21 +1,27 @@
 import { useState } from 'react'
-import type { AccountType } from '../../lib/types'
 import { useStore } from '../../store/useStore'
+import { accountGroups, DEFAULT_GROUPS, groupIcon } from '../../lib/accountGroups'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { TextInput, Field } from '../ui/Input'
 
 export function AddAccount() {
   const addAccount = useStore((s) => s.addAccount)
+  const accounts = useStore((s) => s.accounts)
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [type, setType] = useState<AccountType>('savings')
+  const [group, setGroup] = useState('חיסכון')
+
+  // קבוצות קיימות + ברירות מחדל (ללא כפילויות) להצעה מהירה
+  const suggestions = [
+    ...new Set([...accountGroups(accounts), ...DEFAULT_GROUPS]),
+  ]
 
   const submit = () => {
-    if (!name.trim()) return
-    addAccount(name.trim(), type)
+    if (!name.trim() || !group.trim()) return
+    addAccount(name.trim(), group.trim())
     setName('')
-    setType('savings')
+    setGroup('חיסכון')
     setOpen(false)
   }
 
@@ -43,35 +49,46 @@ export function AddAccount() {
             <TextInput
               autoFocus
               value={name}
-              placeholder="למשל: קופת גמל, קרן השתלמות, פיקדון"
+              placeholder="למשל: קופת גמל, פיקדון, מניות"
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
             />
           </Field>
+
           <div>
-            <span className="mb-1.5 block text-xs font-medium text-ink-500">
-              סוג החשבון
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  { id: 'savings', label: 'חיסכון', icon: '🏦' },
-                  { id: 'investment', label: 'השקעה', icon: '📈' },
-                ] as const
-              ).map((opt) => (
+            <Field label="קבוצה / סוג (שם חופשי)">
+              <TextInput
+                list="account-group-suggestions"
+                value={group}
+                placeholder="למשל: חיסכון, השקעה, פנסיה, קרן השתלמות"
+                onChange={(e) => setGroup(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submit()}
+              />
+            </Field>
+            <datalist id="account-group-suggestions">
+              {suggestions.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+            {/* בחירה מהירה של קבוצות קיימות */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {suggestions.map((g) => (
                 <button
-                  key={opt.id}
-                  onClick={() => setType(opt.id)}
-                  className={`rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
-                    type === opt.id
+                  key={g}
+                  onClick={() => setGroup(g)}
+                  className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    group === g
                       ? 'border-sage-500 bg-sage-50 text-sage-700'
                       : 'border-sand-200 bg-white text-ink-500 hover:bg-sand-50'
                   }`}
                 >
-                  {opt.icon} {opt.label}
+                  {groupIcon(g)} {g}
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-[11px] text-ink-400">
+              כל קבוצה חדשה תופיע כקלף סיכום נפרד בראש הדף.
+            </p>
           </div>
         </div>
       </Modal>

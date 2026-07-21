@@ -1,4 +1,5 @@
 import { useStore } from '../store/useStore'
+import { groupIcon } from '../lib/accountGroups'
 import { Select } from './ui/Input'
 
 interface Props {
@@ -36,12 +37,7 @@ export function SavingsLinkSelect({ accountId, goalId, onChange, className }: Pr
     <Select value={value} onChange={(e) => handle(e.target.value)} className={className}>
       <option value="">ללא שיוך</option>
       {accounts.map((a) => (
-        <optgroup
-          key={a.id}
-          label={`${a.type === 'investment' ? '📈' : '🏦'} ${a.name} (${
-            a.type === 'investment' ? 'השקעה' : 'חיסכון'
-          })`}
-        >
+        <optgroup key={a.id} label={`${groupIcon(a.group)} ${a.name} (${a.group})`}>
           <option value={`acc:${a.id}`}>← כל החשבון</option>
           {a.goals.map((g) => (
             <option key={g.id} value={`goal:${g.id}`}>

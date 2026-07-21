@@ -47,12 +47,11 @@ export interface Goal {
   targetAmount?: number
 }
 
-export type AccountType = 'savings' | 'investment'
-
+// סוג/קבוצת חשבון — שם חופשי שהמשתמש קובע (חיסכון, השקעה, פנסיה, קרן השתלמות...)
 export interface Account {
   id: string
   name: string
-  type: AccountType
+  group: string
   balance: number // יתרה ידנית
   updatedAt: string // ISO
   goals: Goal[]

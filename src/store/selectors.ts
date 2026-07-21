@@ -6,6 +6,7 @@ import type {
   MonthData,
   MonthKey,
 } from '../lib/types'
+import { accountGroups, CHECKING_KEY } from '../lib/accountGroups'
 
 // סכום אפקטיבי של הוצאה: סכום חיוב (או עסקה אם בקליטה) פחות החזר.
 // יכול להיות שלילי עבור זיכויים/החזרים — כך שהם מתקזזים בסיכומים.
@@ -196,26 +197,29 @@ export function accountRemainingToGoals(
   }, 0)
 }
 
-export function totalByType(
+export function totalByGroup(
   accounts: Account[],
   links: SavingLink[],
-  type: 'savings' | 'investment',
+  group: string,
 ): number {
   return accounts
-    .filter((a) => a.type === type)
+    .filter((a) => (a.group || 'חיסכון') === group)
     .reduce((s, a) => s + accountEffectiveBalance(a, links), 0)
 }
 
+// סה"כ הון — סכום הקבוצות והעו"ש, פרט למה שהמשתמש סינן החוצה
 export function totalCapital(
   accounts: Account[],
   links: SavingLink[],
   checkingAmount: number,
+  excluded: string[] = [],
 ): number {
-  return (
-    totalByType(accounts, links, 'savings') +
-    totalByType(accounts, links, 'investment') +
-    checkingAmount
-  )
+  let sum = 0
+  for (const g of accountGroups(accounts)) {
+    if (!excluded.includes(g)) sum += totalByGroup(accounts, links, g)
+  }
+  if (!excluded.includes(CHECKING_KEY)) sum += checkingAmount
+  return sum
 }
 
 // ===== השקעות =====

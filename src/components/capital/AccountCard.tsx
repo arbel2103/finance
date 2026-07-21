@@ -10,6 +10,7 @@ import {
 } from '../../store/selectors'
 import { formatCurrency } from '../../lib/format'
 import { formatDate } from '../../lib/date'
+import { accountGroups, DEFAULT_GROUPS, groupIcon } from '../../lib/accountGroups'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
@@ -20,12 +21,15 @@ export function AccountCard({ account }: { account: Account }) {
   const monthsData = useStore((s) => s.months)
   const accounts = useStore((s) => s.accounts)
   const updateAccountBalance = useStore((s) => s.updateAccountBalance)
+  const renameAccount = useStore((s) => s.renameAccount)
+  const setAccountGroup = useStore((s) => s.setAccountGroup)
   const addGoal = useStore((s) => s.addGoal)
   const removeGoal = useStore((s) => s.removeGoal)
   const removeAccount = useStore((s) => s.removeAccount)
 
   const [balanceOpen, setBalanceOpen] = useState(false)
   const [goalOpen, setGoalOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [months, setMonths] = useState(12)
 
   const links = useMemo(
@@ -45,30 +49,33 @@ export function AccountCard({ account }: { account: Account }) {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-base font-semibold text-ink-900">{account.name}</h3>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                account.type === 'investment'
-                  ? 'bg-violet-100 text-violet-700'
-                  : 'bg-sky-100 text-sky-700'
-              }`}
-            >
-              {account.type === 'investment' ? 'השקעה' : 'חיסכון'}
+            <span className="rounded-full bg-sage-50 px-2 py-0.5 text-[11px] font-medium text-sage-700">
+              {groupIcon(account.group)} {account.group}
             </span>
           </div>
           <div className="mt-0.5 text-xs text-ink-400">
             עודכן {formatDate(account.updatedAt)}
           </div>
         </div>
-        <button
-          onClick={() => {
-            if (window.confirm(`למחוק את החשבון "${account.name}"?`))
-              removeAccount(account.id)
-          }}
-          className="text-ink-300 hover:text-red-500"
-          title="מחיקת חשבון"
-        >
-          🗑️
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="text-ink-300 hover:text-ink-700"
+            title="עריכת שם / קבוצה"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm(`למחוק את החשבון "${account.name}"?`))
+                removeAccount(account.id)
+            }}
+            className="text-ink-300 hover:text-red-500"
+            title="מחיקת חשבון"
+          >
+            🗑️
+          </button>
+        </div>
       </div>
 
       <div>
@@ -182,7 +189,80 @@ export function AccountCard({ account }: { account: Account }) {
           setGoalOpen(false)
         }}
       />
+      <EditAccountModal
+        open={editOpen}
+        name={account.name}
+        group={account.group}
+        groupSuggestions={[
+          ...new Set([...accountGroups(accounts), ...DEFAULT_GROUPS]),
+        ]}
+        onClose={() => setEditOpen(false)}
+        onSave={(name, group) => {
+          if (name.trim()) renameAccount(account.id, name.trim())
+          setAccountGroup(account.id, group)
+          setEditOpen(false)
+        }}
+      />
     </Card>
+  )
+}
+
+function EditAccountModal({
+  open,
+  name: initName,
+  group: initGroup,
+  groupSuggestions,
+  onClose,
+  onSave,
+}: {
+  open: boolean
+  name: string
+  group: string
+  groupSuggestions: string[]
+  onClose: () => void
+  onSave: (name: string, group: string) => void
+}) {
+  const [name, setName] = useState(initName)
+  const [group, setGroup] = useState(initGroup)
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="עריכת חשבון"
+      footer={
+        <>
+          <Button onClick={() => onSave(name, group)}>שמירה</Button>
+          <Button variant="ghost" onClick={onClose}>
+            ביטול
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Field label="שם החשבון">
+          <TextInput
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onSave(name, group)}
+          />
+        </Field>
+        <div>
+          <Field label="קבוצה / סוג">
+            <TextInput
+              list="edit-account-groups"
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && onSave(name, group)}
+            />
+          </Field>
+          <datalist id="edit-account-groups">
+            {groupSuggestions.map((g) => (
+              <option key={g} value={g} />
+            ))}
+          </datalist>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

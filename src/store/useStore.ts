@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
   Account,
-  AccountType,
   Checking,
   Expense,
   InvestmentEntry,
@@ -32,6 +31,7 @@ interface State {
   checking: Checking
   accounts: Account[]
   investments: InvestmentEntry[]
+  capitalExcluded: string[] // קבוצות/עו"ש שהוצאו מחישוב "סה\"כ הון"
   selectedMonth: MonthKey
 
   // ניווט
@@ -68,10 +68,12 @@ interface State {
 
   // הון
   setChecking: (amount: number) => void
-  addAccount: (name: string, type: AccountType) => void
+  addAccount: (name: string, group: string) => void
   removeAccount: (id: string) => void
   updateAccountBalance: (id: string, balance: number) => void
   renameAccount: (id: string, name: string) => void
+  setAccountGroup: (id: string, group: string) => void
+  toggleCapitalExcluded: (key: string) => void
   addGoal: (accountId: string, name: string, targetAmount?: number) => void
   removeGoal: (accountId: string, goalId: string) => void
 
@@ -90,6 +92,7 @@ export const useStore = create<State>()(
       checking: { amount: 0, updatedAt: new Date().toISOString() },
       accounts: [],
       investments: [],
+      capitalExcluded: [],
       selectedMonth: currentMonthKey(),
 
       setSelectedMonth: (mk) => set({ selectedMonth: mk }),
@@ -276,14 +279,14 @@ export const useStore = create<State>()(
       setChecking: (amount) =>
         set({ checking: { amount, updatedAt: new Date().toISOString() } }),
 
-      addAccount: (name, type) =>
+      addAccount: (name, group) =>
         set((s) => ({
           accounts: [
             ...s.accounts,
             {
               id: uid('acc'),
               name,
-              type,
+              group: group.trim() || 'חיסכון',
               balance: 0,
               updatedAt: new Date().toISOString(),
               goals: [],
@@ -328,6 +331,20 @@ export const useStore = create<State>()(
       renameAccount: (id, name) =>
         set((s) => ({
           accounts: s.accounts.map((a) => (a.id === id ? { ...a, name } : a)),
+        })),
+
+      setAccountGroup: (id, group) =>
+        set((s) => ({
+          accounts: s.accounts.map((a) =>
+            a.id === id ? { ...a, group: group.trim() || a.group } : a,
+          ),
+        })),
+
+      toggleCapitalExcluded: (key) =>
+        set((s) => ({
+          capitalExcluded: s.capitalExcluded.includes(key)
+            ? s.capitalExcluded.filter((k) => k !== key)
+            : [...s.capitalExcluded, key],
         })),
 
       addGoal: (accountId, name, targetAmount) =>
@@ -378,7 +395,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'finance-store',
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const state = persisted as State
         // v2: הוספת שדה card להוצאות שיובאו לפני תמיכת ריבוי-כרטיסים
@@ -391,6 +408,18 @@ export const useStore = create<State>()(
         // v3: הוספת רשימת קטגוריות מותאמות
         if (version < 3 && state && !state.customCategories) {
           state.customCategories = []
+        }
+        // v4: המרת type→group (חיסכון/השקעה) + סינון סה"כ הון
+        if (version < 4 && state) {
+          state.accounts = (state.accounts ?? []).map((a) => {
+            const legacy = a as Account & { type?: string }
+            return {
+              ...a,
+              group:
+                a.group ?? (legacy.type === 'investment' ? 'השקעה' : 'חיסכון'),
+            }
+          })
+          if (!state.capitalExcluded) state.capitalExcluded = []
         }
         return state
       },
