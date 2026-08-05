@@ -6,6 +6,25 @@ const navItems = [
   { to: '/capital', label: 'הון והשקעות', icon: '📈' },
 ]
 
+/** Download the persisted finance data so it can be imported into TriLife. */
+function exportData() {
+  const data = localStorage.getItem('finance-store')
+  if (!data) {
+    alert('לא נמצאו נתונים לייצוא בדפדפן הזה.')
+    return
+  }
+  const blob = new Blob([data], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const today = new Date().toISOString().slice(0, 10)
+  a.download = `finance-backup-${today}.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -31,8 +50,14 @@ export function Layout({ children }: { children: ReactNode }) {
             {item.label}
           </NavLink>
         ))}
-        <div className="mt-auto px-2 pt-6 text-[11px] leading-relaxed text-ink-400">
-          הנתונים נשמרים מקומית בדפדפן שלך בלבד.
+        <button
+          onClick={exportData}
+          className="mt-auto mx-2 rounded-xl border border-sand-200 px-3 py-2.5 text-sm font-medium text-ink-500 hover:bg-sand-100 hover:text-ink-900 transition-colors text-start"
+        >
+          ⬇️ ייצוא נתונים ל-TriLife
+        </button>
+        <div className="px-2 pt-3 text-[11px] leading-relaxed text-ink-400">
+          העברנו את הפיננסים ל-TriLife. ייצא כאן וייבא שם.
         </div>
       </aside>
 
@@ -52,6 +77,12 @@ export function Layout({ children }: { children: ReactNode }) {
             {item.label}
           </NavLink>
         ))}
+        <button
+          onClick={exportData}
+          className="ms-auto rounded-lg px-2.5 py-1.5 text-sm font-medium text-sage-700"
+        >
+          ⬇️ ייצוא
+        </button>
       </nav>
 
       <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 max-w-6xl mx-auto w-full">
